@@ -1,15 +1,19 @@
-from sqlalchemy import Column, String, Text, JSON, ForeignKey, Integer
+from sqlalchemy import Column, Integer, String, Text, JSON, ForeignKey, DateTime
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from app.database.base import BaseModel
+from .base import Base
 
-class News(BaseModel):
+class News(Base):
     __tablename__ = "news"
     
+    id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     content = Column(JSON, nullable=False)
     cover = Column(Text, nullable=True)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Lazy relationships
-    author = relationship("User", back_populates="news", lazy="select")
-    comments = relationship("Comment", back_populates="news", cascade="all, delete-orphan", lazy="select")
+    # Relationships
+    author = relationship("User", back_populates="news")
+    comments = relationship("Comment", back_populates="news")

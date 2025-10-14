@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Home - News Management System{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1 class="hero-title">News Management System</h1>
+    <p class="hero-subtitle">A complete CRUD application built with FastAPI and modern web technologies</p>
+    <div class="hero-actions">
+        <a href="/users" class="btn btn-primary">Manage Users</a>
+        <a href="/news" class="btn btn-primary">Manage News</a>
+        <a href="/comments" class="btn btn-primary">Manage Comments</a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-number" hx-get="/users" hx-trigger="load" hx-target="this" hx-select=".list-item" hx-swap="innerHTML" hx-indicator="this">
+            <span class="loading"></span>
+        </span>
+        <span class="stat-label">Total Users</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number" hx-get="/news" hx-trigger="load" hx-target="this" hx-select=".list-item" hx-swap="innerHTML" hx-indicator="this">
+            <span class="loading"></span>
+        </span>
+        <span class="stat-label">News Articles</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number" hx-get="/comments" hx-trigger="load" hx-target="this" hx-select=".list-item" hx-swap="innerHTML" hx-indicator="this">
+            <span class="loading"></span>
+        </span>
+        <span class="stat-label">Comments</span>
+    </div>
+</div>
+
+<div class="grid grid-3">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">👥 Users Management</h3>
+        </div>
+        <p>Create and manage system users. Verified users can publish news articles.</p>
+        <div class="card-actions">
+            <a href="/users" class="btn btn-primary">Manage Users</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📝 News Management</h3>
+        </div>
+        <p>Create, edit, and manage news articles with rich content support.</p>
+        <div class="card-actions">
+            <a href="/news" class="btn btn-primary">Manage News</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">💬 Comments Management</h3>
+        </div>
+        <p>Manage user comments on news articles with moderation tools.</p>
+        <div class="card-actions">
+            <a href="/comments" class="btn btn-primary">Manage Comments</a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">🚀 Quick Actions</h3>
+    </div>
+    <div class="grid grid-3">
+        <div>
+            <h4>Create Sample User</h4>
+            <form hx-post="/users" hx-target="#quick-action-result" class="mb-2">
+                <input type="hidden" name="name" value="Sample User">
+                <input type="hidden" name="email" value="sample@example.com">
+                <input type="hidden" name="is_verified" value="true">
+                <button type="submit" class="btn btn-outline btn-sm" data-loading>Create User</button>
+            </form>
+        </div>
+        <div>
+            <h4>System Status</h4>
+            <div id="health-status" hx-get="/health" hx-trigger="load">
+                <span class="loading"></span> Checking...
+            </div>
+        </div>
+        <div>
+            <h4>API Documentation</h4>
+            <a href="/docs" class="btn btn-outline btn-sm" target="_blank">View API Docs</a>
+        </div>
+    </div>
+    <div id="quick-action-result"></div>
+</div>
+{% endblock %}

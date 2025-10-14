@@ -1,0 +1,27 @@
+<div class="user-list">
+    {% if users %}
+        {% for user in users %}
+        <div class="list-item">
+            <h4>{{ user.name }}</h4>
+            <p>Email: {{ user.email }}</p>
+            <p>Verified: {{ "Yes" if user.is_verified else "No" }}</p>
+            {% if user.avatar %}
+            <p>Avatar: {{ user.avatar }}</p>
+            {% endif %}
+            <div class="item-actions">
+                <button class="btn btn-danger btn-sm"
+                        hx-delete="/users/{{ user.id }}"
+                        hx-confirm="Are you sure you want to delete this user?"
+                        hx-target="closest .list-item"
+                        hx-swap="delete">
+                    Delete
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>No users found. Create your first user!</p>
+        </div>
+    {% endif %}
+</div>

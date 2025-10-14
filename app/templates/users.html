@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Users Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>User Management</h1>
+
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+        <div>
+            <h3>Create User</h3>
+            <form hx-post="/users" hx-target="#users-list" hx-on::after-request="this.reset()">
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" name="email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="is_verified" value="true">
+                        Verified Author
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </form>
+        </div>
+
+        <div>
+            <h3>Users List</h3>
+            <div id="users-list" hx-get="/api/users" hx-trigger="load">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-#!/root/lab1_Your_Name/venv/bin/python3
+#!/home/kali/FastAPI/venv/bin/python3.13
 # -*- coding: utf-8 -*-
 import re
 import sys
