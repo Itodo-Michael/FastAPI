@@ -4,10 +4,10 @@ from typing import Optional
 from .user import User
 
 class CommentBase(BaseModel):
-    text: str
+    text: str  # Must be 'text' to match database column name
 
 class CommentCreate(CommentBase):
-    pass
+    news_id: int  # Keep news_id field
 
 class CommentUpdate(CommentBase):
     pass

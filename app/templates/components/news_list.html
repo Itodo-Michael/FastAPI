@@ -2,28 +2,48 @@
     {% if news %}
         {% for item in news %}
         <div class="list-item">
-            <h4>{{ item.title }}</h4>
-            <p>Author ID: {{ item.author_id }}</p>
-            {% if item.cover %}
-            <p>Cover: {{ item.cover }}</p>
-            {% endif %}
-            <div class="item-content">
-                <p><strong>Content:</strong> {{ item.content | tojson }}</p>
+            <div class="item-header">
+                <div>
+                    <h4 class="item-title">{{ item.title }}</h4>
+                    <div class="item-meta">
+                        By {{ item.author.name if item.author else 'Unknown Author' }}
+                        {% if item.cover %}
+                        <span class="badge">Has Cover</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-outline btn-sm"
+                            hx-get="/news/{{ item.id }}/edit"
+                            hx-target="closest .list-item"
+                            hx-swap="outerHTML">
+                        Edit
+                    </button>
+                    <button class="btn btn-danger btn-sm"
+                            hx-delete="/news/{{ item.id }}"
+                            hx-confirm="Are you sure you want to delete this news article?"
+                            hx-target="closest .list-item"
+                            hx-swap="delete">
+                        Delete
+                    </button>
+                </div>
             </div>
-            <div class="item-actions">
-                <button class="btn btn-danger btn-sm"
-                        hx-delete="/news/{{ item.id }}"
-                        hx-confirm="Are you sure you want to delete this news article?"
-                        hx-target="closest .list-item"
-                        hx-swap="delete">
-                    Delete
-                </button>
+            <div class="item-content">
+                <p>{{ item.content.text if item.content is mapping else item.content }}</p>
+            </div>
+            <div class="item-footer">
+                <span class="item-meta">
+                    Published: {{ item.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </span>
+                <span class="badge">{{ item.comments|length }} comments</span>
             </div>
         </div>
         {% endfor %}
     {% else %}
         <div class="empty-state">
-            <p>No news articles found. Create your first news article!</p>
+            <div class="empty-state-icon">📝</div>
+            <h3>No News Found</h3>
+            <p>Create your first news article to get started.</p>
         </div>
     {% endif %}
 </div>

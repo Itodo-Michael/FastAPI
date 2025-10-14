@@ -1,36 +1,41 @@
 {% extends "base.html" %}
 
-{% block title %}Comments Management{% endblock %}
+{% block title %}Comment Management - News System{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Comments Management</h1>
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">💬 Comment Management</h2>
+        <p>Manage user comments on news articles</p>
+    </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
-        <div>
-            <h3>Create Comment</h3>
-            <form hx-post="/comments" hx-target="#comments-list" hx-on::after-request="this.reset()">
+    <!-- Create Comment Form -->
+    <div id="create-comment-section">
+        <div class="card">
+            <h3>Create New Comment</h3>
+            <!-- Submit to the HTML endpoint in main.py -->
+            <form hx-post="/comments" hx-target="#comments-list" hx-swap="innerHTML">
                 <div class="form-group">
-                    <label>Comment Text:</label>
-                    <textarea name="text" class="form-control" rows="4" required></textarea>
+                    <label class="form-label">News ID</label>
+                    <input type="number" name="news_id" class="form-control" value="1" required>
                 </div>
                 <div class="form-group">
-                    <label>News ID:</label>
-                    <input type="number" name="news_id" class="form-control" required>
+                    <label class="form-label">Comment Text</label>
+                    <textarea name="text" class="form-control" rows="3" placeholder="Enter your comment..." required></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Author ID:</label>
-                    <input type="number" name="author_id" class="form-control" required>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Comment</button>
                 </div>
-                <button type="submit" class="btn btn-primary">Create Comment</button>
             </form>
         </div>
+    </div>
 
-        <div>
-            <h3>Comments List</h3>
-            <div id="comments-list" hx-get="/api/comments" hx-trigger="load">
-                <div class="loading">Loading comments...</div>
-            </div>
+    <!-- Comments List -->
+    <div class="card">
+        <h3>All Comments</h3>
+        <!-- Load comments via your API endpoint -->
+        <div id="comments-list" hx-get="/api/comments/" hx-trigger="load">
+            <div class="loading">Loading comments...</div>
         </div>
     </div>
 </div>

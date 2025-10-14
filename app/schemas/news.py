@@ -5,7 +5,7 @@ from .user import User
 
 class NewsBase(BaseModel):
     title: str
-    content: dict[str, Any]
+    content: dict[str, Any]  # CHANGE BACK to dict for JSON
     cover: Optional[str] = None
 
 class NewsCreate(NewsBase):
@@ -13,7 +13,7 @@ class NewsCreate(NewsBase):
 
 class NewsUpdate(BaseModel):
     title: Optional[str] = None
-    content: Optional[dict[str, Any]] = None
+    content: Optional[dict[str, Any]] = None  # CHANGE BACK to dict
     cover: Optional[str] = None
 
 class News(NewsBase):

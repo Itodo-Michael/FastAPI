@@ -7,7 +7,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/news_db
     depends_on:
@@ -22,7 +22,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=news_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
 volumes:
   postgres_data:

@@ -20,15 +20,13 @@ class ToastManager {
         // Auto remove after duration
         setTimeout(() => {
             if (toast.parentNode) {
-                toast.style.animation = 'slideInRight 0.3s ease reverse';
-                setTimeout(() => toast.remove(), 300);
+                toast.remove();
             }
         }, duration);
         
         // Click to dismiss
         toast.addEventListener('click', () => {
-            toast.style.animation = 'slideInRight 0.3s ease reverse';
-            setTimeout(() => toast.remove(), 300);
+            toast.remove();
         });
         
         return toast;
@@ -53,15 +51,16 @@ class ToastManager {
 
 // Initialize toast manager
 const toast = new ToastManager();
+window.toast = toast;
 
-// HTMX configuration and extensions
+// HTMX configuration
 document.addEventListener('DOMContentLoaded', function() {
-    // Configure HTMX
     htmx.config.useTemplateFragments = true;
     
-    // Show loading states
+    // Show loading states for HTMX requests
     document.body.addEventListener('htmx:beforeRequest', function(evt) {
         const target = evt.target;
+        
         if (target.hasAttribute('data-loading')) {
             const originalText = target.innerHTML;
             target.setAttribute('data-original-text', originalText);
@@ -72,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.body.addEventListener('htmx:afterRequest', function(evt) {
         const target = evt.target;
+        
         if (target.hasAttribute('data-loading')) {
             const originalText = target.getAttribute('data-original-text');
             if (originalText) {
@@ -82,18 +82,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Handle form responses
+    // Handle successful responses
     document.body.addEventListener('htmx:afterOnLoad', function(evt) {
         const xhr = evt.detail.xhr;
         
-        // Show success message for successful operations
         if (xhr.status >= 200 && xhr.status < 300) {
             const requestMethod = evt.detail.requestConfig.verb;
             
             if (requestMethod === 'post') {
-                toast.success('Item created successfully!');
-            } else if (requestMethod === 'put') {
-                toast.success('Item updated successfully!');
+                toast.success('Operation completed successfully!');
+            } else if (requestMethod === 'put' || requestMethod === 'patch') {
+                toast.success('Update completed successfully!');
             } else if (requestMethod === 'delete') {
                 toast.success('Item deleted successfully!');
             }
@@ -116,73 +115,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// API Client for additional JavaScript functionality
-class ApiClient {
-    constructor(baseURL = '') {
-        this.baseURL = baseURL;
-    }
-
-    async request(endpoint, options = {}) {
-        const url = `${this.baseURL}${endpoint}`;
-        const config = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
-            ...options,
-        };
-
-        try {
-            const response = await fetch(url, config);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('API request failed:', error);
-            throw error;
-        }
-    }
-
-    async getUsers() {
-        return this.request('/users');
-    }
-
-    async createUser(userData) {
-        return this.request('/users', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-        });
-    }
-
-    async getNews() {
-        return this.request('/news');
-    }
-
-    async createNews(newsData) {
-        return this.request('/news', {
-            method: 'POST',
-            body: JSON.stringify(newsData),
-        });
-    }
-
-    async getComments() {
-        return this.request('/comments');
-    }
-
-    async createComment(commentData) {
-        return this.request('/comments', {
-            method: 'POST',
-            body: JSON.stringify(commentData),
-        });
-    }
-}
-
-// Initialize API client
-const api = new ApiClient();
-
 // Utility functions
-const utils = {
+window.utils = {
     formatDate(dateString) {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
@@ -195,206 +129,174 @@ const utils = {
     },
 
     truncateText(text, maxLength = 100) {
+        if (!text) return '';
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + '...';
-    },
-
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    },
+    }
 };
 
-// Custom formatters for HTMX responses
-window.formatUsers = function(users) {
-    if (!users || users.length === 0) {
-        return `
-            <div class="empty-state">
-                <div class="empty-state-icon">👥</div>
-                <h3>No Users Found</h3>
-                <p>Create your first user to get started.</p>
-            </div>
-        `;
-    }
-
-    return users.map(user => `
-        <div class="list-item">
-            <div class="item-header">
-                <div>
-                    <h4 class="item-title">${user.name}</h4>
-                    <div class="item-meta">
-                        ${user.email}
-                        ${user.is_verified ? '<span class="badge badge-success">Verified</span>' : ''}
-                    </div>
-                </div>
-                <div class="item-actions">
-                    <button class="btn btn-outline btn-sm"
-                            hx-get="/users/${user.id}"
-                            hx-target="closest .list-item"
-                            hx-swap="outerHTML">
-                        Edit
-                    </button>
-                    <button class="btn btn-danger btn-sm"
-                            hx-delete="/users/${user.id}"
-                            hx-confirm="Are you sure you want to delete this user?"
-                            hx-target="closest .list-item"
-                            hx-swap="delete">
-                        Delete
-                    </button>
-                </div>
-            </div>
-            <div class="item-meta">
-                Created: ${utils.formatDate(user.created_at)}
-                ${user.updated_at ? ` • Updated: ${utils.formatDate(user.updated_at)}` : ''}
-            </div>
-        </div>
-    `).join('');
-};
-
-window.formatNews = function(news) {
-    if (!news || news.length === 0) {
-        return `
-            <div class="empty-state">
-                <div class="empty-state-icon">📝</div>
-                <h3>No News Found</h3>
-                <p>Create your first news article to get started.</p>
-            </div>
-        `;
-    }
-
-    return news.map(item => `
-        <div class="list-item">
-            <div class="item-header">
-                <div>
-                    <h4 class="item-title">${item.title}</h4>
-                    <div class="item-meta">
-                        By ${item.author?.name || 'Unknown Author'}
-                        ${item.cover ? '<span class="badge">Has Cover</span>' : ''}
-                    </div>
-                </div>
-                <div class="item-actions">
-                    <button class="btn btn-outline btn-sm"
-                            hx-get="/news/${item.id}"
-                            hx-target="closest .list-item"
-                            hx-swap="outerHTML">
-                        Edit
-                    </button>
-                    <button class="btn btn-danger btn-sm"
-                            hx-delete="/news/${item.id}"
-                            hx-confirm="Are you sure you want to delete this news article?"
-                            hx-target="closest .list-item"
-                            hx-swap="delete">
-                        Delete
-                    </button>
-                </div>
-            </div>
-            <div class="item-content">
-                <p>${utils.truncateText(typeof item.content === 'object' ? JSON.stringify(item.content) : item.content)}</p>
-            </div>
-            <div class="item-meta">
-                Published: ${utils.formatDate(item.created_at)}
-            </div>
-        </div>
-    `).join('');
-};
-
-window.formatComments = function(comments) {
-    if (!comments || comments.length === 0) {
-        return `
-            <div class="empty-state">
-                <div class="empty-state-icon">💬</div>
-                <h3>No Comments Found</h3>
-                <p>No comments have been posted yet.</p>
-            </div>
-        `;
-    }
-
-
-// Modal management
-window.modalManager = {
-    openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-        }
-    },
+// Auth management functions
+async function updateAuthUI() {
+    const authSection = document.getElementById('auth-section');
+    if (!authSection) return;
     
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-    },
+    const token = localStorage.getItem('access_token');
     
-    closeAllModals() {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            modal.style.display = 'none';
+    if (token) {
+        try {
+            const response = await fetch('/auth/me', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+            
+            if (response.ok) {
+                const user = await response.json();
+                authSection.innerHTML = `
+                    <div class="user-nav">
+                        <div class="user-info">
+                            <span class="user-name">Hello, ${user.name}</span>
+                            <div class="user-badges">
+                                ${user.is_verified ? '<span class="badge badge-success">Verified Author</span>' : ''}
+                                ${user.is_admin ? '<span class="badge badge-warning">Admin</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="user-actions">
+                            ${user.is_verified ? '<a href="/news/create" class="btn btn-outline btn-sm">✏️ Create News</a>' : ''}
+                            <button onclick="logout()" class="btn btn-outline btn-sm">🚪 Logout</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                showLoginButtons();
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            showLoginButtons();
+        }
+    } else {
+        showLoginButtons();
+    }
+}
+
+function showLoginButtons() {
+    const authSection = document.getElementById('auth-section');
+    authSection.innerHTML = `
+        <div class="auth-buttons">
+            <a href="/auth/login" class="nav-link">🔐 Login</a>
+            <a href="/auth/register" class="nav-link">👤 Register</a>
+            <a href="/auth/oauth/github/demo" class="btn btn-github btn-sm">
+                <span>🐙 GitHub Demo</span>
+            </a>
+        </div>
+    `;
+}
+
+function logout() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    
+    if (refreshToken) {
+        // Call logout endpoint to invalidate refresh token
+        fetch('/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refresh_token: refreshToken })
+        }).catch(error => {
+            console.error('Logout API call failed:', error);
         });
-        document.body.style.overflow = 'auto';
     }
-};
+    
+    // Clear local storage
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    
+    // Show success message
+    if (window.toast) {
+        window.toast.success('Logged out successfully!');
+    }
+    
+    // Redirect to home page
+    setTimeout(() => {
+        window.location.href = '/';
+    }, 1000);
+}
 
-// Close modal when clicking outside content
-document.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        window.modalManager.closeModal(event.target.id);
+// Handle OAuth callback - check if we have tokens in URL or response
+function handleOAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+    
+    if (accessToken && refreshToken) {
+        localStorage.setItem('access_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
+        
+        toast.success('GitHub login successful!');
+        
+        // Redirect to home page
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
     }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    handleOAuthCallback();
+    updateAuthUI();
+    
+    // Add auth header to all HTMX requests
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            evt.detail.headers['Authorization'] = 'Bearer ' + token;
+        }
+    });
+    
+    // Handle auth errors in HTMX responses
+    document.body.addEventListener('htmx:responseError', function(evt) {
+        if (evt.detail.xhr.status === 401) {
+            // Unauthorized - clear tokens and reload auth UI
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            updateAuthUI();
+            
+            if (window.toast) {
+                window.toast.error('Session expired. Please login again.');
+            }
+        }
+    });
 });
 
-// Close modal with Escape key
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        window.modalManager.closeAllModals();
+// Global function to check if user is authenticated
+window.isAuthenticated = function() {
+    return !!localStorage.getItem('access_token');
+}
+
+// Global function to get current user (async)
+window.getCurrentUser = async function() {
+    const token = localStorage.getItem('access_token');
+    if (!token) return null;
+    
+    try {
+        const response = await fetch('/auth/me', {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+        return null;
+    } catch (error) {
+        console.error('Failed to get current user:', error);
+        return null;
     }
-});
+}
 
-
-// Global modal functions
-window.openModal = window.modalManager.openModal;
-window.closeModal = window.modalManager.closeModal;
-
-
-    return comments.map(comment => `
-        <div class="list-item">
-            <div class="item-header">
-                <div>
-                    <h4 class="item-title">Comment by ${comment.author?.name || 'Unknown User'}</h4>
-                    <div class="item-meta">
-                        On News ID: ${comment.news_id}
-                    </div>
-                </div>
-                <div class="item-actions">
-                    <button class="btn btn-outline btn-sm"
-                            hx-get="/comments/${comment.id}"
-                            hx-target="closest .list-item"
-                            hx-swap="outerHTML">
-                        Edit
-                    </button>
-                    <button class="btn btn-danger btn-sm"
-                            hx-delete="/comments/${comment.id}"
-                            hx-confirm="Are you sure you want to delete this comment?"
-                            hx-target="closest .list-item"
-                            hx-swap="delete">
-                        Delete
-                    </button>
-                </div>
-            </div>
-            <div class="item-content">
-                <p>${comment.text}</p>
-            </div>
-            <div class="item-meta">
-                Posted: ${utils.formatDate(comment.created_at)}
-            </div>
-        </div>
-    `).join('');
-};
+// Make functions available globally
+window.updateAuthUI = updateAuthUI;
+window.logout = logout;

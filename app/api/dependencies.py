@@ -10,3 +10,19 @@ def get_verified_user(author_id: int, db: Session = Depends(get_db)):
     if not user.is_verified:
         raise HTTPException(status_code=403, detail="User is not verified to perform this action")
     return user
+
+from .dependencie.auth import (
+    get_current_user,
+    get_current_verified_user, 
+    get_current_admin_user,
+    news_owner_or_admin,
+    comment_owner_or_admin
+)
+
+__all__ = [
+    "get_current_user",
+    "get_current_verified_user",
+    "get_current_admin_user", 
+    "news_owner_or_admin",
+    "comment_owner_or_admin"
+]

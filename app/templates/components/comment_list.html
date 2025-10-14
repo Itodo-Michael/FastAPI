@@ -2,23 +2,42 @@
     {% if comments %}
         {% for comment in comments %}
         <div class="list-item">
-            <h4>Comment by User #{{ comment.author_id }}</h4>
-            <p>On News ID: {{ comment.news_id }}</p>
-            <p><strong>Text:</strong> {{ comment.text }}</p>
-            <div class="item-actions">
-                <button class="btn btn-danger btn-sm"
-                        hx-delete="/comments/{{ comment.id }}"
-                        hx-confirm="Are you sure you want to delete this comment?"
-                        hx-target="closest .list-item"
-                        hx-swap="delete">
-                    Delete
-                </button>
+            <div class="item-header">
+                <div>
+                    <h4 class="item-title">Comment by {{ comment.author.name if comment.author else 'Unknown User' }}</h4>
+                    <div class="item-meta">
+                        On: {{ comment.news.title if comment.news else 'News #' + comment.news_id|string }}
+                    </div>
+                </div>
+                <div class="item-actions">
+                    <button class="btn btn-outline btn-sm"
+                            hx-get="/comments/{{ comment.id }}/edit"
+                            hx-target="closest .list-item"
+                            hx-swap="outerHTML">
+                        Edit
+                    </button>
+                    <button class="btn btn-danger btn-sm"
+                            hx-delete="/comments/{{ comment.id }}"
+                            hx-confirm="Are you sure you want to delete this comment?"
+                            hx-target="closest .list-item"
+                            hx-swap="delete">
+                        Delete
+                    </button>
+                </div>
+            </div>
+            <div class="item-content">
+                <p>{{ comment.text }}</p>
+            </div>
+            <div class="item-meta">
+                Posted: {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
             </div>
         </div>
         {% endfor %}
     {% else %}
         <div class="empty-state">
-            <p>No comments found. Create your first comment!</p>
+            <div class="empty-state-icon">💬</div>
+            <h3>No Comments Found</h3>
+            <p>No comments have been posted yet.</p>
         </div>
     {% endif %}
 </div>

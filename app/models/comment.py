@@ -1,17 +1,13 @@
-from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Text, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-from .base import Base
+from app.models.base import BaseModel
 
-class Comment(Base):
+class Comment(BaseModel):
     __tablename__ = "comments"
     
-    id = Column(Integer, primary_key=True, index=True)
     text = Column(Text, nullable=False)
     news_id = Column(Integer, ForeignKey("news.id"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     news = relationship("News", back_populates="comments")

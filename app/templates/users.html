@@ -1,39 +1,128 @@
 {% extends "base.html" %}
 
-{% block title %}Users Management{% endblock %}
+{% block title %}User Management - News System{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>User Management</h1>
+<div class="users-page">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>👥 User Management</h1>
+        <p>Manage system users and permissions</p>
+    </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
-        <div>
-            <h3>Create User</h3>
-            <form hx-post="/users" hx-target="#users-list" hx-on::after-request="this.reset()">
-                <div class="form-group">
-                    <label>Name:</label>
-                    <input type="text" name="name" class="form-control" required>
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-number" id="total-users">-</span>
+            <span class="stat-label">Total Users</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number" id="admin-users">-</span>
+            <span class="stat-label">Admin Users</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number" id="verified-users">-</span>
+            <span class="stat-label">Verified Authors</span>
+        </div>
+    </div>
+
+    <!-- Create User Card -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">➕ Create New User</h3>
+        </div>
+        <div class="card-body">
+            <form 
+                hx-post="/api/users" 
+                hx-target="#users-list" 
+                hx-swap="beforeend"
+                data-loading
+                class="create-user-form"
+            >
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Name *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password *</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Avatar URL (optional)</label>
+                        <input type="url" name="avatar_url" class="form-control" placeholder="https://example.com/avatar.jpg">
+                    </div>
                 </div>
+                
                 <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" name="email" class="form-control" required>
+                    <label class="form-label">Roles</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="is_verified"> Verified Author
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="is_admin"> Administrator
+                        </label>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" name="is_verified" value="true">
-                        Verified Author
-                    </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        👤 Create User
+                    </button>
                 </div>
-                <button type="submit" class="btn btn-primary">Create User</button>
             </form>
         </div>
+    </div>
 
-        <div>
-            <h3>Users List</h3>
-            <div id="users-list" hx-get="/api/users" hx-trigger="load">
+    <!-- Users List -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📋 All Users</h3>
+            <button 
+                hx-get="/api/users" 
+                hx-target="#users-list" 
+                hx-trigger="click"
+                data-loading
+                class="btn btn-outline btn-sm"
+            >
+                🔄 Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="users-list" class="users-list">
+                <!-- Users will be loaded here -->
                 <div class="loading">Loading users...</div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Load users on page load -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load users list
+    htmx.ajax('GET', '/api/users', { target: '#users-list' });
+    
+    // Load stats
+    loadUserStats();
+});
+
+async function loadUserStats() {
+    try {
+        const response = await fetch('/api/users/stats');
+        const stats = await response.json();
+        
+        document.getElementById('total-users').textContent = stats.total_users || '0';
+        document.getElementById('admin-users').textContent = stats.admin_users || '0';
+        document.getElementById('verified-users').textContent = stats.verified_users || '0';
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+}
+</script>
 {% endblock %}

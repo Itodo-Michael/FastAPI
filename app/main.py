@@ -15,6 +15,11 @@ from app.crud import comment as comment_crud
 from app.schemas.user import UserCreate
 from app.schemas.news import NewsCreate
 from app.schemas.comment import CommentCreate
+from app.services.auth_service import AuthService
+
+# Import routers
+from app.api.routes import users, news, comments, auth, oauth, admin
+from app.api.dependencie.auth import get_current_user  # Fixed import path
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -32,12 +37,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create tables on startup
+# Create tables and admin user on startup
 @app.on_event("startup")
 def create_tables():
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully!")
+    
+    # Create default admin user if not exists
+    create_default_admin()
+
+def create_default_admin():
+    from app.database.session import SessionLocal
+    
+    db = SessionLocal()
+    try:
+        admin_email = "admin@news.com"
+        existing_admin = user_crud.user.get_by_email(db, email=admin_email)
+        
+        if not existing_admin:
+            admin_data = {
+                "name": "System Administrator",
+                "email": admin_email,
+                "hashed_password": AuthService.get_password_hash("admin123"),
+                "is_verified": True,
+                "is_admin": True
+            }
+            admin_user = user_crud.user.create(db, obj_in=admin_data)
+            print(f"✅ Admin user created: {admin_user.email} (password: admin123)")
+        else:
+            print(f"✅ Admin user already exists: {existing_admin.email}")
+            
+            # Ensure existing admin has correct permissions
+            if not existing_admin.is_admin:
+                existing_admin.is_admin = True
+                existing_admin.is_verified = True
+                db.commit()
+                print(f"✅ Updated existing user to admin: {existing_admin.email}")
+                
+    except Exception as e:
+        print(f"❌ Error creating admin user: {e}")
+    finally:
+        db.close()
 
 # Mount static files and templates
 try:
@@ -46,6 +87,14 @@ try:
 except Exception as e:
     print(f"Warning: Could not mount static files: {e}")
     templates = None
+
+# Include API routers - FIXED: Use consistent prefixes
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(oauth.router, prefix="/auth/oauth", tags=["oauth"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])  # Changed from /api/routes/users
+app.include_router(news.router, prefix="/api/news", tags=["news"])    # Changed from /api/routes/news
+app.include_router(comments.router, prefix="/api/comments", tags=["comments"])  # Changed from /api/routes/comments
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 # Frontend Routes
 @app.get("/", response_class=HTMLResponse)
@@ -72,11 +121,10 @@ async def comments_page(request: Request):
         return templates.TemplateResponse("comments.html", {"request": request})
     return HTMLResponse("<h1>Comments Management</h1><p>Frontend not configured</p>")
 
-# Health Check - FIXED VERSION
+# Health Check
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
     try:
-        # Test database connection - FIXED
         from sqlalchemy import text
         db.execute(text("SELECT 1"))
         return {"status": "healthy", "service": "News API", "database": "connected"}
@@ -120,12 +168,11 @@ async def create_user_form(
     request: Request,
     name: str = Form(...),
     email: str = Form(...),
+    password: str = Form(...),
     is_verified: bool = Form(False),
     avatar: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    user_data = UserCreate(name=name, email=email, is_verified=is_verified, avatar=avatar)
-    
     # Check if user already exists
     existing_user = user_crud.user.get_by_email(db, email=email)
     if existing_user:
@@ -135,7 +182,16 @@ async def create_user_form(
         )
     
     try:
-        user = user_crud.user.create(db, obj_in=user_data)
+        # Create user with hashed password
+        user_dict = {
+            "name": name,
+            "email": email,
+            "hashed_password": AuthService.get_password_hash(password),
+            "is_verified": is_verified,
+            "avatar": avatar
+        }
+        
+        user = user_crud.user.create(db, obj_in=user_dict)
         users = user_crud.user.get_all(db)
         
         if templates:
@@ -156,9 +212,16 @@ async def create_news_form(
     title: str = Form(...),
     content: str = Form(...),
     cover: str = Form(None),
-    author_id: int = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
+    # Check if user is verified
+    if not current_user.is_verified and not current_user.is_admin:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "You need to be verified to create news"}
+        )
+    
     try:
         # Parse JSON content
         content_dict = json.loads(content)
@@ -168,22 +231,9 @@ async def create_news_form(
             content={"detail": "Invalid JSON content"}
         )
     
-    # Check if author exists and is verified
-    author = user_crud.user.get(db, id=author_id)
-    if not author:
-        return JSONResponse(
-            status_code=404,
-            content={"detail": "Author not found"}
-        )
-    if not author.is_verified:
-        return JSONResponse(
-            status_code=403,
-            content={"detail": "Author is not verified"}
-        )
-    
     try:
         news_data = NewsCreate(title=title, content=content_dict, cover=cover)
-        news = news_crud.news.create(db, obj_in=news_data, author_id=author_id)
+        news = news_crud.news.create(db, obj_in=news_data, author_id=current_user.id)
         news_list = news_crud.news.get_all(db)
         
         if templates:
@@ -203,8 +253,8 @@ async def create_comment_form(
     request: Request,
     text: str = Form(...),
     news_id: int = Form(...),
-    author_id: int = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     # Check if news exists
     news = news_crud.news.get(db, id=news_id)
@@ -214,17 +264,9 @@ async def create_comment_form(
             content={"detail": "News not found"}
         )
     
-    # Check if author exists
-    author = user_crud.user.get(db, id=author_id)
-    if not author:
-        return JSONResponse(
-            status_code=404,
-            content={"detail": "Author not found"}
-        )
-    
     try:
         comment_data = CommentCreate(text=text)
-        comment = comment_crud.comment.create(db, obj_in=comment_data, news_id=news_id, author_id=author_id)
+        comment = comment_crud.comment.create(db, obj_in=comment_data, news_id=news_id, author_id=current_user.id)
         comments = comment_crud.comment.get_all(db)
         
         if templates:
@@ -232,7 +274,7 @@ async def create_comment_form(
                 "request": request,
                 "comments": comments
             })
-        return HTMLResponse(f"<p>Comment created by {author.name}</p>")
+        return HTMLResponse(f"<p>Comment created successfully</p>")
     except Exception as e:
         return JSONResponse(
             status_code=500,
@@ -241,7 +283,18 @@ async def create_comment_form(
 
 # Delete operations for HTMX
 @app.delete("/users/{user_id}")
-async def delete_user_html(user_id: int, db: Session = Depends(get_db)):
+async def delete_user_html(
+    user_id: int, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    # Only allow admins or users deleting themselves
+    if not current_user.is_admin and current_user.id != user_id:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Not enough permissions"}
+        )
+    
     user = user_crud.user.get(db, id=user_id)
     if not user:
         return JSONResponse(
@@ -259,12 +312,23 @@ async def delete_user_html(user_id: int, db: Session = Depends(get_db)):
         )
 
 @app.delete("/news/{news_id}")
-async def delete_news_html(news_id: int, db: Session = Depends(get_db)):
+async def delete_news_html(
+    news_id: int, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     news = news_crud.news.get(db, id=news_id)
     if not news:
         return JSONResponse(
             status_code=404,
             content={"detail": "News not found"}
+        )
+    
+    # Check permissions - only author or admin can delete
+    if news.author_id != current_user.id and not current_user.is_admin:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Not enough permissions to delete this news"}
         )
     
     try:
@@ -277,12 +341,23 @@ async def delete_news_html(news_id: int, db: Session = Depends(get_db)):
         )
 
 @app.delete("/comments/{comment_id}")
-async def delete_comment_html(comment_id: int, db: Session = Depends(get_db)):
+async def delete_comment_html(
+    comment_id: int, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     comment = comment_crud.comment.get(db, id=comment_id)
     if not comment:
         return JSONResponse(
             status_code=404,
             content={"detail": "Comment not found"}
+        )
+    
+    # Check permissions - only author or admin can delete
+    if comment.author_id != current_user.id and not current_user.is_admin:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Not enough permissions to delete this comment"}
         )
     
     try:
@@ -294,12 +369,47 @@ async def delete_comment_html(comment_id: int, db: Session = Depends(get_db)):
             content={"detail": f"Error deleting comment: {str(e)}"}
         )
 
-# Include your existing API routers
-from app.api.routes import users, news, comments
+# Auth pages
+@app.get("/auth/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Login page"""
+    if templates:
+        return templates.TemplateResponse("auth/login.html", {"request": request})
+    return HTMLResponse("<h1>Login</h1><p>Frontend not configured</p>")
 
-app.include_router(users.router, prefix="/api/routes/users", tags=["users-api"])
-app.include_router(news.router, prefix="/api/routes/news", tags=["news-api"])
-app.include_router(comments.router, prefix="/api/routes/comments", tags=["comments-api"])
+@app.get("/auth/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    """Registration page"""
+    if templates:
+        return templates.TemplateResponse("auth/register.html", {"request": request})
+    return HTMLResponse("<h1>Register</h1><p>Frontend not configured</p>")
+
+@app.get("/auth/verify", response_class=HTMLResponse)
+async def verify_page(request: Request):
+    """Verification request page"""
+    if templates:
+        return templates.TemplateResponse("auth/verify.html", {"request": request})
+    return HTMLResponse("<h1>Request Verification</h1><p>Frontend not configured</p>")
+
+# Debug endpoint to check all users
+@app.get("/all-users")
+def get_all_users(db: Session = Depends(get_db)):
+    """Get all users in the system"""
+    from app.crud import user as user_crud
+    users = user_crud.user.get_all(db)
+    
+    user_list = []
+    for user in users:
+        user_list.append({
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "is_admin": user.is_admin,
+            "is_verified": user.is_verified,
+            "github_id": user.github_id
+        })
+    
+    return user_list
 
 @app.get("/")
 def read_root():

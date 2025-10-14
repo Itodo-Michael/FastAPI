@@ -15,20 +15,24 @@ class CRUDBase(Generic[ModelType]):
         return db.query(self.model).offset(skip).limit(limit).all()
 
     def create(self, db: Session, obj_in: Dict[str, Any]) -> ModelType:
-        db_obj = self.model(**obj_in)
+    # Фильтруем None значения
+        filtered_data = {k: v for k, v in obj_in.items() if v is not None}
+        db_obj = self.model(**filtered_data)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
         return db_obj
 
-    def update(self, db: Session, id: int, obj_in: Dict[str, Any]) -> Optional[ModelType]:
-        db_obj = db.query(self.model).filter(self.model.id == id).first()
-        if db_obj:
-            for field, value in obj_in.items():
+def update(self, db: Session, id: int, obj_in: Dict[str, Any]) -> Optional[ModelType]:
+    db_obj = db.query(self.model).filter(self.model.id == id).first()
+    if db_obj:
+        # Фильтруем None значения и обновляем только существующие атрибуты
+        for field, value in obj_in.items():
+            if value is not None and hasattr(db_obj, field):
                 setattr(db_obj, field, value)
-            db.commit()
-            db.refresh(db_obj)
-        return db_obj
+        db.commit()
+        db.refresh(db_obj)
+    return db_obj
 
     def delete(self, db: Session, id: int) -> Optional[ModelType]:
         db_obj = db.query(self.model).filter(self.model.id == id).first()

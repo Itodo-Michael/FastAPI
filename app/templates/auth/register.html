@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Register - News System{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 2rem auto;">
+    <div class="card-header">
+        <h2 class="card-title">👤 Register</h2>
+    </div>
+    
+    <form id="register-form">
+        <div class="form-group">
+            <label class="form-label">Name *</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Email *</label>
+            <input type="email" id="email" name="email" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Password *</label>
+            <input type="password" id="password" name="password" class="form-control" required minlength="6">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Avatar URL (optional)</label>
+            <input type="url" id="avatar" name="avatar" class="form-control" placeholder="https://example.com/avatar.jpg">
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
+        </div>
+    </form>
+    
+    <div style="text-align: center; margin-top: 1rem;">
+        <p>Already have an account? <a href="/auth/login">Login here</a></p>
+        <p>Or <a href="/auth/oauth/github/demo">Register with GitHub (Demo)</a></p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('register-form');
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Get form values
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim().toLowerCase();
+        const password = document.getElementById('password').value;
+        const avatar = document.getElementById('avatar').value.trim() || null;
+        
+        const data = {
+            name: name,
+            email: email,
+            password: password,
+            avatar: avatar
+        };
+        
+        console.log('Sending registration data:', data);
+        
+        // Basic validation
+        if (!name || !email || !password) {
+            toast.error('Please fill in all required fields');
+            return;
+        }
+        
+        if (password.length < 6) {
+            toast.error('Password must be at least 6 characters long');
+            return;
+        }
+        
+        if (!email.includes('@')) {
+            toast.error('Please enter a valid email address');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="loading"></span> Registering...';
+        submitBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            console.log('Response status:', response.status);
+          if (response.ok) {
+    const result = await response.json();
+    console.log('Registration successful:', result);
+    
+    // Save tokens and auto-login
+    localStorage.setItem('access_token', result.tokens.access_token);
+    localStorage.setItem('refresh_token', result.tokens.refresh_token);
+    
+    toast.success(`Welcome ${result.user.name}! Redirecting...`);
+    
+    // Update navigation and redirect
+    setTimeout(() => {
+        if (window.updateAuthUI) {
+            window.updateAuthUI();
+        }
+        window.location.href = '/';
+    }, 1500);
+    
+} else {
+    // Handle error response
+    let errorMessage = 'Registration failed';
+    
+    try {
+        const errorJson = await response.json();
+        errorMessage = errorJson.detail || errorMessage;
+        console.log('Error details:', errorJson);
+    } catch (e) {
+        errorMessage = response.statusText || errorMessage;
+    }
+    
+    // Specific handling for common errors
+    if (response.status === 400) {
+        if (errorMessage.includes('already registered')) {
+            errorMessage = `
+                ❌ This email is already registered!
+                <br><br>
+                Please either:
+                <br>• <a href="/auth/login" style="color: #3498db; text-decoration: underline;">Login with this email</a>
+                <br>• Use a different email address
+            `;
+        }
+    } else if (response.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+    }
+    
+    toast.error(errorMessage, 7000); // Show for 7 seconds
+}
+
+        } catch (error) {
+            console.log('Network error:', error);
+            toast.error('Network error - please try again');
+        } finally {
+            // Restore button state
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}

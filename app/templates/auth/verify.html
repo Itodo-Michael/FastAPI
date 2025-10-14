@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Request Verification - News System{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 2rem auto;">
+    <div class="card-header">
+        <h2 class="card-title">✅ Request Author Verification</h2>
+    </div>
+    
+    <div class="card">
+        <h3>Why get verified?</h3>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1rem;">
+            <li>Create and publish news articles</li>
+            <li>Gain credibility as an author</li>
+            <li>Access advanced features</li>
+        </ul>
+        
+        <div id="verification-status">
+            <!-- Status will be updated here -->
+        </div>
+        
+        <div class="form-actions">
+            <button id="request-verify-btn" class="btn btn-primary">Request Verification</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        window.location.href = '/auth/login';
+        return;
+    }
+    
+    // Check current verification status
+    try {
+        const response = await fetch('/auth/check', {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+        
+        if (response.ok) {
+            const user = await response.json();
+            const statusDiv = document.getElementById('verification-status');
+            
+            if (user.is_verified) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>✅ You are already verified!</strong>
+                        <p>You can now create news articles.</p>
+                        <a href="/news/create" class="btn btn-success">Create Your First News</a>
+                    </div>
+                `;
+                document.getElementById('request-verify-btn').style.display = 'none';
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>📝 Verification Required</strong>
+                        <p>Click the button below to request verification.</p>
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check verification status:', error);
+    }
+});
+
+document.getElementById('request-verify-btn').addEventListener('click', async function() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        toast.error('Please login first');
+        window.location.href = '/auth/login';
+        return;
+    }
+    
+    const button = this;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loading"></span> Requesting...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch('/auth/verify-request', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            toast.success(result.message || 'Verification request submitted!');
+            
+            // Update UI
+            document.getElementById('verification-status').innerHTML = `
+                <div class="alert alert-success">
+                    <strong>✅ Verification Request Submitted!</strong>
+                    <p>${result.message || 'You are now verified and can create news articles.'}</p>
+                    <a href="/news/create" class="btn btn-success">Create Your First News</a>
+                </div>
+            `;
+            button.style.display = 'none';
+            
+            // Update navigation
+            if (window.updateAuthUI) {
+                setTimeout(() => window.updateAuthUI(), 1000);
+            }
+            
+        } else {
+            const error = await response.json();
+            toast.error(error.detail || 'Request failed');
+        }
+    } catch (error) {
+        console.error('Verification request failed:', error);
+        toast.error('Network error - please try again');
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+});
+</script>
+
+<style>
+.alert {
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.alert-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+</style>
+{% endblock %}

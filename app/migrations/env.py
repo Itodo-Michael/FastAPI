@@ -7,10 +7,12 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+# Импортируйте ВСЕ модели здесь
 from app.models.base import Base
 from app.models.user import User
 from app.models.news import News
 from app.models.comment import Comment
+from app.models.session import RefreshSession
 
 config = context.config
 
@@ -45,4 +47,3 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-            

@@ -1,54 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}News Management{% endblock %}
+{% block title %}News Management - News System{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>News Management</h1>
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">📝 News Management</h2>
+        <p>Create and manage news articles</p>
+    </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
-        <div>
-            <h3>Create News Article</h3>
-            <form hx-post="/news" hx-target="#news-list" hx-on::after-request="this.reset()">
-                <div class="form-group">
-                    <label>Title:</label>
-                    <input type="text" name="title" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label>Content (JSON):</label>
-                    <textarea name="content" class="form-control" rows="4" required>{
-  "blocks": [
-    {
-      "type": "paragraph", 
-      "text": "Your news content here..."
-    }
-  ]
-}</textarea>
-                    <small class="form-text text-muted">
-                        Use valid JSON format. Example above shows the required structure.
-                    </small>
-                </div>
-                <div class="form-group">
-                    <label>Cover Image URL:</label>
-                    <input type="url" name="cover" class="form-control" placeholder="https://example.com/image.jpg">
-                </div>
-                <div class="form-group">
-                    <label>Author ID:</label>
-                    <input type="number" name="author_id" class="form-control" required min="1" placeholder="1">
-                    <small class="form-text text-muted">
-                        Enter the ID of a verified user. Create a user first if needed.
-                    </small>
-                </div>
-                <button type="submit" class="btn btn-primary">Create News</button>
-            </form>
+    <!-- Create News Form (only for verified users) -->
+    <div id="create-news-section">
+        <!-- This will be populated based on auth status -->
+        <div class="card">
+            <div class="loading">Checking authentication...</div>
         </div>
+    </div>
 
-        <div>
-            <h3>News Articles</h3>
-            <div id="news-list" hx-get="/api/news" hx-trigger="load">
-                <div class="loading">Loading news...</div>
-            </div>
+    <!-- News List -->
+    <div class="card">
+        <h3>All News Articles</h3>
+        <div id="news-list" hx-get="/api/news" hx-trigger="load">
+            <div class="loading">Loading news...</div>
         </div>
     </div>
 </div>
+
+<script>
+// Load create news form based on auth status
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/auth/check', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Not authenticated');
+    })
+    .then(user => {
+        if (user.is_verified || user.is_admin) {
+            document.getElementById('create-news-section').innerHTML = `
+                <div class="card">
+                    <h3>Create New News Article</h3>
+                    <form hx-post="/news" hx-target="#news-list" hx-swap="innerHTML">
+                        <div class="form-group">
+                            <label class="form-label">Title</label>
+                            <input type="text" name="title" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Content (JSON)</label>
+                            <textarea name="content" class="form-control" rows="4" required>{"text": "Your news content here..."}</textarea>
+                            <small class="form-text">Enter content as JSON. Example: {"text": "Your content", "summary": "Brief summary"}</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cover Image URL (optional)</label>
+                            <input type="url" name="cover" class="form-control">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" data-loading>Create News</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        } else {
+            document.getElementById('create-news-section').innerHTML = `
+                <div class="card">
+                    <div class="empty-state">
+                        <h3>🔒 Verification Required</h3>
+                        <p>You need to be a verified author to create news articles.</p>
+                        <a href="/auth/verify" class="btn btn-primary">Request Verification</a>
+                    </div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('create-news-section').innerHTML = `
+            <div class="card">
+                <div class="empty-state">
+                    <h3>🔐 Authentication Required</h3>
+                    <p>Please log in to create news articles.</p>
+                    <a href="/auth/login" class="btn btn-primary">Login</a>
+                </div>
+            </div>
+        `;
+    });
+});
+</script>
 {% endblock %}
